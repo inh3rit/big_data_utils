@@ -7,9 +7,10 @@ import kafka.message.MessageAndMetadata
 import kafka.serializer.Decoder
 import kafka.utils.{Json, ZKGroupTopicDirs, ZkUtils}
 import org.I0Itec.zkclient.ZkClient
+import org.apache.spark.rdd.RDD
 import org.apache.spark.streaming.StreamingContext
 import org.apache.spark.streaming.dstream.InputDStream
-import org.apache.spark.streaming.kafka.KafkaUtils
+import org.apache.spark.streaming.kafka.{HasOffsetRanges, KafkaCluster, KafkaUtils, OffsetRange}
 
 import scala.collection.Seq
 import scala.reflect.ClassTag
@@ -22,6 +23,21 @@ class KafkaManager() extends Serializable {
     val kafkaStream: InputDStream[(K, V)] = KafkaUtils.createDirectStream[K, V, KD, VD, (K, V)](
       ssc, kafkaParams, fromOffsets, (mmd: MessageAndMetadata[K, V]) => (mmd.key, mmd.message))
     kafkaStream
+  }
+
+  def updateZkOffset(rdd: RDD[(String, String)], topics: Set[String], kafkaParams: Map[String, String]): Unit = {
+    val offsetsList: Array[OffsetRange] = rdd.asInstanceOf[HasOffsetRanges].offsetRanges
+    val kc = new KafkaCluster(kafkaParams)
+    for (offsets <- offsetsList) {
+      //TopicAndPartition 主构造参数第一个是topic，第二个是 partition id
+      topics.foreach(topic => {
+        val topicAndPartition = TopicAndPartition(topic, offsets.partition) //offsets.partition表示的是Kafka partition id
+        //实现offset写入zookeeper
+        val o = kc.setConsumerOffsets(kafkaParams("group_id"), Map((topicAndPartition, offsets.untilOffset)))
+        if (o.isLeft)
+          println(s"Error updating the offset to Kafka cluster: ${o.left.get}")
+      })
+    }
   }
 
   private def getMaxOffset(tp: TopicAndPartition, zkClient: ZkClient): Long = {
@@ -78,7 +94,7 @@ class KafkaManager() extends Serializable {
     }
   }
 
-  def getFromOffsets(kafkaParams: Map[String, String], topics: Set[String]): Map[TopicAndPartition, Long] = {
+  private def getFromOffsets(kafkaParams: Map[String, String], topics: Set[String]): Map[TopicAndPartition, Long] = {
     val zkClient = new ZkClient(kafkaParams("zk_host"))
     zkClient.setZkSerializer(new MyZkSerializer())
     val groupId = kafkaParams("group_id")
@@ -115,6 +131,4 @@ class KafkaManager() extends Serializable {
     })
     fromOffsets
   }
-
-
 }

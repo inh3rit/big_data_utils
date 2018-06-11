@@ -5,7 +5,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.streaming.{Seconds, StreamingContext}
 import org.scalatest.FunSuite
 
-object kafka_offset extends FunSuite{
+class SparkTest extends FunSuite{
 
   def main(args: Array[String]): Unit = {
     val conf = new SparkConf()
