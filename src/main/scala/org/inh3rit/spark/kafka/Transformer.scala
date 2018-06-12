@@ -1,5 +1,8 @@
 package org.inh3rit.spark.kafka
 
+import java.text.SimpleDateFormat
+import java.util.Date
+
 import com.alibaba.fastjson.JSON
 import kafka.serializer.StringDecoder
 import org.apache.spark.SparkConf
@@ -11,7 +14,7 @@ import org.inh3rit.lang.detector.LangDetector
 
 object Transformer {
 
-  case class Trip(id: String, url: String, title: String, content: String, timestamp: String, source_name: String, types: String)
+  case class Trip(id: String, url: String, title: String, content: String, var timestamp: String, source_name: String, types: String)
 
   def main(args: Array[String]): Unit = {
     val conf = new SparkConf()
@@ -23,7 +26,6 @@ object Transformer {
       .set("es.nodes", "192.168.31.135,192.168.31.136,192.168.31.137,192.168.31.138,192.168.31.139")
       .set("es.port", "9200")
       .set("es.index.auto.create", "true")
-    //      .set("spark.es.resource", "index/type") //saveToEs中设置
     val ssc = new StreamingContext(conf, Seconds(1L))
 
     val topics = Set("sent-cache-records")
@@ -38,29 +40,29 @@ object Transformer {
     val kafkaManager = new KafkaManager()
     val kafkaStream = kafkaManager.createDirectStream[String, String, StringDecoder, StringDecoder](ssc, kafkaParams, topics)
 
+    val sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+
     kafkaStream.foreachRDD(rdd => {
       println(s"-----------------------${rdd.count()}--------------------------")
-      //      val records = rdd.map(r => {
-      //        println(r._2)
-      //        val record = JSON.parseObject(r._2, classOf[Trip])
-      //        record
-      //      })
-      //      records.foreach(record => {
-      //        println(record)
-      //      })
       val records = rdd.map(r => {
         val record = JSON.parseObject(r._2, classOf[Trip])
+        record.timestamp = sdf.format(new Date(record.timestamp.toLong))
         record
-        //      }).filter(record => {
-        //        var lang = ""
-        //        try {
-        //          lang = LangDetector.detect(record.content)
-        //        } catch {
-        //          case e: Exception => // do nothing
-        //        }
-        //        lang.equals("zh")
+      }).filter(record =>
+        record.content.length > 20
+      ).filter(record => {
+        var lang = ""
+        try {
+          lang = LangDetector.detect(record.content)
+        } catch {
+          case e: Exception => // do nothing
+        }
+        lang.equals("zh")
       })
-      records.saveToEs("test_sent/record", Map("es.batch.size.entries" -> "3000"))
+
+      records.saveToEs("test_sent/record", Map(
+        "es.mapping.id" -> "id" // 指定_id
+      ))
     })
 
     //把offset更新到zookeeper

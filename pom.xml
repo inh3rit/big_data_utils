@@ -55,9 +55,9 @@
         </dependency>
 
         <dependency>
-            <groupId>org.inh3rit</groupId>
-            <artifactId>tools</artifactId>
-            <version>1.2</version>
+            <groupId>com.optimaize.languagedetector</groupId>
+            <artifactId>language-detector</artifactId>
+            <version>0.6</version>
         </dependency>
     </dependencies>
 
