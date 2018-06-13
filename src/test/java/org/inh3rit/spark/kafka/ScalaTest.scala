@@ -1,6 +1,6 @@
 package org.inh3rit.spark.kafka
 
-class kafka_offsetTest extends org.scalatest.FunSuite {
+class ScalaTest extends org.scalatest.FunSuite {
 
   test("test private variables") {
     val aaa = 1
