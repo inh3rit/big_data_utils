@@ -3,7 +3,7 @@ package org.inh3rit.spark.kafka
 import java.text.SimpleDateFormat
 
 import kafka.serializer.StringDecoder
-import org.apache.hadoop.hbase.client.{ConnectionFactory, Put, Table}
+import org.apache.hadoop.hbase.client.{ConnectionFactory, Get, Put, Table}
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.hbase.{HBaseConfiguration, HColumnDescriptor, HTableDescriptor, TableName}
 import org.apache.spark.SparkConf
@@ -36,8 +36,12 @@ object TransformerTest {
   //  }
 
 
-  val configuration = HBaseConfiguration.create()
-  val connection = ConnectionFactory.createConnection(configuration)
+  val configuration = HBaseConfiguration
+          .create()
+    configuration.set("hbase.zookeeper.quorum", "192.168.31.135,192.168.31.136,192.168.31.137,192.168.31.138,192.168.31.139")
+    configuration.set("hbase.zookeeper.property.clientPort", "2181")
+          //设置zookeeper连接端口，默认2181
+    val connection = ConnectionFactory.createConnection(configuration)
   val admin = connection.getAdmin
   val table = connection.getTable(TableName.valueOf("test_sent"))
 
@@ -67,21 +71,40 @@ object TransformerTest {
 
     val sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
 
-    kafkaStream.foreachRDD(rdd => {
-      println(s"-----------------------${rdd.count()}--------------------------")
-      rdd.foreachPartition(partitionRecords => {
-        partitionRecords.foreach(s => {
-          println(s)
-
-
-        })
-      })
-    })
+    //    kafkaStream.foreachRDD(rdd => {
+    //      println(s"-----------------------${rdd.count()}--------------------------")
+    //      rdd.foreachPartition(partitionRecords => {
+    //        partitionRecords.foreach(s => {
+    //          println(s)
+    //
+    //
+    //        })
+    //      })
+    //    })
 
     //把offset更新到zookeeper
     //    kafkaStream.foreachRDD(rdd => {
     //      kafkaManager.updateZkOffset(rdd, topics, kafkaParams)
     //    })
+
+    kafkaStream.foreachRDD(rdd => {
+      rdd.foreachPartition(pa => {
+        pa.foreach(p => {
+          val get = new Get(Bytes.toBytes(p._1))
+          val resultGet = table.get(get)
+          resultGet.advance() match {
+            case true => {
+              //              val accountNum = Bytes.toInt(resultGet.getValue(Bytes.toBytes("i"), Bytes.toBytes("accountNum")))
+              //              val amountNum = Bytes.toInt(resultGet.getValue(Bytes.toBytes("i"), Bytes.toBytes("amountNum")))
+              //              insertHbase(p._1, p._2._1 + accountNum, p._2._2 + amountNum)
+              resultGet.getValue(Bytes.toBytes(""), Bytes.toBytes(""))
+            }
+            case _ =>
+          }
+        })
+      })
+    })
+
 
     ssc.start()
     ssc.awaitTermination()
@@ -89,8 +112,8 @@ object TransformerTest {
 
   //创建hbase表 String* 创建多个列簇
   def createTable(table: Table, colFamily: String*): Unit = {
-    if (!admin.tableExists(TableName.valueOf("order_stastic"))) {
-      val descriptor = new HTableDescriptor(TableName.valueOf("order_stastic"))
+    if (!admin.tableExists(TableName.valueOf("order_static"))) {
+      val descriptor = new HTableDescriptor(TableName.valueOf("order_static"))
       //foreach创建多个列簇
       colFamily.foreach(x => descriptor.addFamily(new HColumnDescriptor(x)))
       admin.createTable(descriptor)
@@ -107,4 +130,5 @@ object TransformerTest {
 
 
 }
+
 //https://blog.csdn.net/xiushuiguande/article/details/79922776
