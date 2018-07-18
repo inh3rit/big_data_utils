@@ -97,28 +97,28 @@ class HBaseSparkTest extends FunSuite {
 
 }
 
-object HBaseSparkTest {
-  def main(args: Array[String]): Unit = {
-    val sparkConf = new SparkConf().setAppName("HBaseTest").setMaster("local")
-    val sc = new SparkContext(sparkConf)
-    sc.setLogLevel("ERROR")
-
-    val tableName = "test_t"
-    val configuration = HBaseConfiguration.create()
-    configuration.set("hbase.zookeeper.quorum", "192.168.31.135,192.168.31.136,192.168.31.137,192.168.31.138,192.168.31.139")
-    configuration.set("hbase.zookeeper.property.clientPort", "2181")
-    configuration.set(TableInputFormat.INPUT_TABLE, tableName)
-
-    val indataRDD = sc.makeRDD(Array(("5", "jack", "15"), ("6", "Lily", "16"), ("7", "mike", "16"), ("8", "tom", "17")))
-    indataRDD.foreachPartition { records =>
-      val hTable = new HTable(configuration, tableName)
-      val puts = records.map(record => {
-        val put = new Put(record._1.getBytes())
-        put.addColumn(Bytes.toBytes("test_f1"), Bytes.toBytes("name"), Bytes.toBytes(record._2))
-        put.addColumn(Bytes.toBytes("test_f1"), Bytes.toBytes("age"), Bytes.toBytes(record._3))
-        put
-      })
-      hTable.put(puts.toList.asJava)
-    }
-  }
-}
+//object HBaseSparkTest {
+//  def main(args: Array[String]): Unit = {
+//    val sparkConf = new SparkConf().setAppName("HBaseTest").setMaster("local")
+//    val sc = new SparkContext(sparkConf)
+//    sc.setLogLevel("ERROR")
+//
+//    val tableName = "test_t"
+//    val configuration = HBaseConfiguration.create()
+//    configuration.set("hbase.zookeeper.quorum", "192.168.31.135,192.168.31.136,192.168.31.137,192.168.31.138,192.168.31.139")
+//    configuration.set("hbase.zookeeper.property.clientPort", "2181")
+//    configuration.set(TableInputFormat.INPUT_TABLE, tableName)
+//
+//    val indataRDD = sc.makeRDD(Array(("5", "jack", "15"), ("6", "Lily", "16"), ("7", "mike", "16"), ("8", "tom", "17")))
+//    indataRDD.foreachPartition { records =>
+//      val hTable = new HTable(configuration, tableName)
+//      val puts = records.map(record => {
+//        val put = new Put(record._1.getBytes())
+//        put.addColumn(Bytes.toBytes("test_f1"), Bytes.toBytes("name"), Bytes.toBytes(record._2))
+//        put.addColumn(Bytes.toBytes("test_f1"), Bytes.toBytes("age"), Bytes.toBytes(record._3))
+//        put
+//      })
+//      hTable.put(puts.toList.asJava)
+//    }
+//  }
+//}
